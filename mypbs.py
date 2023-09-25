@@ -56,7 +56,7 @@ class MyPBS:
                 self.redis.set(f"node.{self.name}", "running " + command["name"])
 
                 b = subprocess.check_output(command["command"], shell=True)
-                print("Result for", command["name"], b.decode('ascii'))
+                print("Result for", command["name"])
 
                 self.redis.set(f"node.{self.name}", "waiting")
 
