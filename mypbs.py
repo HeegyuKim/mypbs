@@ -5,6 +5,9 @@ import time
 from pprint import pprint
 from traceback import print_exc
 import subprocess
+from datetime import datetime
+
+
 
 
 def get_args():
@@ -47,8 +50,9 @@ class MyPBS:
             else:
                 command_json = command_json[0]
             
-            print(command_json)
             command = json.loads(str(command_json))
+            command["handled"] = datetime.now().isoformat()
+            command["handler"] = self.name
             try:
                 print("Load job")
                 pprint(command)
@@ -65,6 +69,7 @@ class MyPBS:
                 print_exc()
                 command["result"] = "error"
             
+            command["finished"] = datetime.now().isoformat()
             command = self.redis.lpush("cmd.finish", json.dumps(command))
 
     def get_nodes(self):
@@ -80,10 +85,12 @@ class MyPBS:
     def add_job(self, name, command):
         job = dict(
             name=name,
-            command=command
+            command=command,
+            created=datetime.now().isoformat()
         )
         self.redis.rpush("cmd.waiting", json.dumps(job))
 
     def delete(self):
-        for key in self.redis.keys('*'):
+        for key in self.redis.keys():
             self.redis.delete(key)
+        self.redis.flushall()
