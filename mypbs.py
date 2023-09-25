@@ -41,19 +41,22 @@ class MyPBS:
 
 
     def start_consuming(self):
+        command = None
+
         print("start consuming...")
         while True:
-            command_json = self.redis.lpop("cmd.waiting", 1)
-            if command_json is None:
-                time.sleep(10)
-                continue
-            else:
-                command_json = command_json[0]
-            
-            command = json.loads(str(command_json))
-            command["handled"] = datetime.now().isoformat()
-            command["handler"] = self.name
             try:
+                command_json = self.redis.lpop("cmd.waiting", 1)
+                if command_json is None:
+                    time.sleep(10)
+                    continue
+                else:
+                    command_json = command_json[0]
+                
+                command = json.loads(str(command_json))
+                command["handled"] = datetime.now().isoformat()
+                command["handler"] = self.name
+
                 print("Load job")
                 pprint(command)
 
@@ -65,12 +68,21 @@ class MyPBS:
                 self.redis.set(f"node.{self.name}", "waiting")
 
                 command["result"] = "success"
+                print("Waiting...")
+            except KeyboardInterrupt:
+                print("interrupted!")
+
+                if command:
+                    command["result"] = "interrupted"
+                else:
+                    return
             except:
                 print_exc()
                 command["result"] = "error"
             
             command["finished"] = datetime.now().isoformat()
-            command = self.redis.lpush("cmd.finish", json.dumps(command))
+            self.redis.lpush("cmd.finish", json.dumps(command))
+            command = None
 
     def get_nodes(self):
         return {key[5:]: self.redis.get(key) for key in self.redis.scan_iter("node.*")}
